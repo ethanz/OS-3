@@ -56,7 +56,7 @@ void *Mem_Alloc(int size, int style)
 	list_t *curr = head;
 	int record = 0;
 	list_t *fit = NULL;
-	list_t * nxt = NULL;
+	list_t *nxt = NULL;
 	switch(style)
 	{
 		case BESTFIT:
@@ -107,6 +107,7 @@ void *Mem_Alloc(int size, int style)
 						curr->next = nxt;
 					}
 					curr->free = 1;
+					curr->size = size;
 					return curr;
 				}
 				curr = curr->next;
@@ -121,6 +122,7 @@ void *Mem_Alloc(int size, int style)
 		nxt->size = fit->size - size;
 		fit->next = nxt;
 		fit->free = 1;
+		fit->size = size;
 		return fit;
 	}
 	m_error = E_NO_SPACE;
