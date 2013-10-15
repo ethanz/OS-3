@@ -5,4 +5,4 @@ mem.o: mem.c
 	gcc -c -fpic mem.c -Wall -Werror
 
 clean:
-	rm -r libmem.so mem.o
+	rm -f libmem.so mem.o
