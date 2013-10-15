@@ -68,7 +68,7 @@ void *Mem_Alloc(int size, int style)
 					if(curr->size == size)
 					{
 						curr->free = 1;
-						return curr;
+						return (void *)curr;
 					}
 					if(curr->size > size && (record == 0 || curr->size < record))
 					{
@@ -108,7 +108,7 @@ void *Mem_Alloc(int size, int style)
 					}
 					curr->free = 1;
 					curr->size = size;
-					return curr;
+					return (void *)curr;
 				}
 				curr = curr->next;
 			}
@@ -123,8 +123,9 @@ void *Mem_Alloc(int size, int style)
 		fit->next = nxt;
 		fit->free = 1;
 		fit->size = size;
-		return fit;
+		return (void *)fit;
 	}
+
 	m_error = E_NO_SPACE;
 	return NULL;
 }
