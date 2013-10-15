@@ -3,14 +3,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 //declare & define global variables
 extern int callCnt;
-extern *void ptr;
 
 int callCnt = 0;
 int m_error = 0;
-*void ptr = NULL;
+
+typedef struct __list_t {
+	int size;
+	void *next;
+} list_t;
+
+list_t *head = NULL;
 
 int Mem_Init(int sizeOfRegion)
 {
@@ -18,8 +27,22 @@ int Mem_Init(int sizeOfRegion)
 		m_error = E_BAD_ARGS;	
 		return -1;
 	}
+
 	callCnt = 1;
 	int pageSize = getpagesize();
+	sizeOfRegion -= sizeOfRegion % pageSize; //round region size to be divisible by page size
+	int fd = open("/dev/zero", O_RDWR);
+	void *ptr = mmap(NULL, sizeOfRegion, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+	if(ptr == MAP_FAILED)
+	{
+		perror("mmap");
+		return -1;
+	}
+
+	head = (list_t *) ptr;
+	head->size = sizeOfRegion;
+	head->next = NULL;
+	close(fd);
 
 	return 0;
 }
@@ -40,5 +63,11 @@ int Mem_Free(void *ptr)
 
 void Mem_Dump()
 {
-	
+	printf("dump:\n");
+	list_t *tmp = head;
+	while(tmp != NULL)
+	{
+		printf("Free Size: %d\n", tmp->size);
+		tmp = tmp->next;
+	}
 }

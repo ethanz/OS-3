@@ -7,7 +7,7 @@
 int
 main(int argc, char *argv[])
 {
-	int rc = Mem.Init(40960);
+	int rc = Mem_Init(40960);
 	printf("Return Code: %d", rc);
 	Mem_Dump();
 	return 0;
