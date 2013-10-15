@@ -31,7 +31,11 @@ void *Mem_Alloc(int size, int style)
 
 int Mem_Free(void *ptr)
 {
-	return -1; 
+	if(ptr == NULL)
+	{
+		return -1; 
+	}
+	return 0;
 }
 
 void Mem_Dump()
