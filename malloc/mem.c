@@ -20,26 +20,28 @@ typedef struct __list_t {
 	int free;//whether this block is free, 0 = free 1 = full 
 } list_t;
 
+extern list_t *head;
 list_t *head = NULL;
 
 int Mem_Init(int sizeOfRegion)
 {
 	if (callCnt == 1 || sizeOfRegion <= 0){
 		m_error = E_BAD_ARGS;	
-		printf("mmap fail1");//test
 		return -1;
 	}
 
 	callCnt = 1;
 	int pageSize = getpagesize();
-	sizeOfRegion += (8 - sizeOfRegion % pageSize); //round region size to be divisible by page size
+	if(sizeOfRegion % pageSize != 0)
+	{
+		sizeOfRegion += pageSize - (sizeOfRegion % pageSize); //round region size to be divisible by page size
+	}
 	int fd = open("/dev/zero", O_RDWR);
 	void *ptr = mmap(NULL, sizeOfRegion, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if(ptr == MAP_FAILED)
 	{
 		perror("mmap");
 		return -1;
-		printf("mmap fail2");//test
 	}
 
 	head = (list_t *) ptr;
@@ -53,10 +55,17 @@ int Mem_Init(int sizeOfRegion)
 
 void *Mem_Alloc(int size, int style)
 {
+	if(size % 8 != 0)
+	{
+		size += (8 - size % 8);
+	}
+
 	list_t *curr = head;
 	int record = 0;
 	list_t *fit = NULL;
 	list_t *nxt = NULL;
+	int done = 0;
+
 	switch(style)
 	{
 		case BESTFIT:
@@ -75,8 +84,8 @@ void *Mem_Alloc(int size, int style)
 						record = curr->size;
 						fit = curr;
 					}
-					curr = curr->next;
 				}
+				curr = (list_t *)curr->next;
 			}
 			break;
 
@@ -95,35 +104,36 @@ void *Mem_Alloc(int size, int style)
 
 		case FIRSTFIT:
 
-			while(curr != NULL)
+			while(curr != NULL && done != 1)
 			{
-				if(curr->free == 0 && curr->size >= size)
+				if(curr->free == 0 && curr->size >= size + sizeof(list_t))
 				{
-					if(curr->size != size)
-					{
-						nxt->next = curr->next;
-						nxt->free = 0;
-						nxt->size = curr->size - size;
-						curr->next = nxt;
-					}
-					curr->free = 1;
-					curr->size = size;
-					return (void *)curr;
+					fit = curr;
+					done = 1;
 				}
-				curr = curr->next;
+				if(done != 1)
+				{
+					curr = curr->next;
+				}
 			}
 			break;
 	}
 
 	if(fit != NULL)
 	{
-		nxt->next = fit->next;
+		nxt = (void *)fit + size + sizeof(list_t);
+		nxt->next = NULL;
+		if(fit->next != NULL){
+			nxt->next = fit->next;
+		}
 		nxt->free = 0;
-		nxt->size = fit->size - size;
+		nxt->size = fit->size - size - sizeof(list_t);
+
 		fit->next = nxt;
 		fit->free = 1;
 		fit->size = size;
-		return (void *)fit;
+		//printf("%p\n", fit);
+		return fit;
 	}
 
 	m_error = E_NO_SPACE;
@@ -134,16 +144,46 @@ int Mem_Free(void *ptr)
 {
 	if(ptr == NULL || ((list_t *)ptr)->free == 0)
 	{
+		m_error = E_BAD_POINTER;
+		printf("Bad Pointer\n");
 		return -1; 
 	}
 
 	list_t* tmp = (list_t *) ptr;
+	list_t* prv = NULL;
+	list_t* curr = head;
+	while(curr != tmp)
+	{
+		prv = curr;
+		curr = curr->next;
+	}
 	if(tmp->next != NULL)
 	{
-		list_t* nxt = (list_t *) tmp->next;
-		tmp->next = nxt->next;
-		tmp->size += nxt->size;
+		list_t* nxt = (list_t *) (tmp->next);
+		if(nxt->free == 0)
+		{
+			if(nxt->next != NULL)
+			{
+				tmp->next = nxt->next;
+			}
+			else
+			{
+				tmp->next = NULL;
+			}
+			tmp->size += nxt->size + sizeof(list_t);
+			nxt = NULL;
+		}
+		if(prv != NULL)
+		{
+			if(prv->free == 0)
+			{
+				prv->next = tmp->next;
+				prv->size += tmp->size + sizeof(list_t);
+			}
+		}
+		//printf("freed: next is not NULL\n");
 	}//leave nxt?
+	//printf("freed\n");
 
 	tmp->free = 0;
 	return 0;
@@ -153,9 +193,20 @@ void Mem_Dump()
 {
 	printf("dump:\n");
 	list_t *tmp = head;
+	int count = 0;
+	printf("%d\n", (int)sizeof(list_t));
 	while(tmp != NULL)
 	{
-		printf("Free Size: %d\n", tmp->size);
+		count++;
+		if(tmp->free == 0)
+		{
+			printf("Free Size: %d\n", tmp->size);
+		}
+		else
+		{
+			printf("Allocated Size: %d\n", tmp->size);
+		}
 		tmp = tmp->next;
 	}
+	printf("------------------------\n");
 }
